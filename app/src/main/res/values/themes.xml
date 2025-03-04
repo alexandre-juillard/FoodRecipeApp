@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Thème principal de l'application -->
+    <style name="Theme.FoodRecipeApp" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- Thème pour l'écran de splash -->
+    <style name="Theme.FoodRecipeApp.Splash" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- couleur de fond et le drawable -->
+        <item name="android:windowBackground">@drawable/splash_background</item>
+    </style>
+</resources>
