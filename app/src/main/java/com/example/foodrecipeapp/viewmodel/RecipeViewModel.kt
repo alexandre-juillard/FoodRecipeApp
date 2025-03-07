@@ -1,6 +1,7 @@
 package com.example.foodrecipeapp.viewmodel
 
 import android.util.Log
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -19,10 +20,18 @@ sealed interface RecipeState {
     object Empty : RecipeState
 }
 
+sealed interface RecipeDetailState {
+    object Loading : RecipeDetailState
+    data class Success(val recipe: Recipe) : RecipeDetailState
+    data class Error(val message: String) : RecipeDetailState
+}
+
 class RecipeViewModel: ViewModel() {
     var nextPageUrl: String? = null
     var isFetching = false
     private var allRecipes = mutableListOf<Recipe>()
+    private val _recipeDetailState = mutableStateOf<RecipeDetailState>(RecipeDetailState.Loading)
+    val recipeDetailState: State<RecipeDetailState> = _recipeDetailState
 
     var recipeState by mutableStateOf<RecipeState>(RecipeState.Loading)
         private set
@@ -92,6 +101,18 @@ class RecipeViewModel: ViewModel() {
     fun loadMoreRecipes() {
         if (!isFetching && nextPageUrl != null) {
             getRecipes() // pour charger la page suivante
+        }
+    }
+
+    fun getRecipeDetails(recipeId: Int) {
+        viewModelScope.launch {
+            _recipeDetailState.value = RecipeDetailState.Loading
+            try {
+                val response = FoodApi.retrofitService.getRecipeDetails(recipeId)
+                _recipeDetailState.value = RecipeDetailState.Success(response)
+            } catch (e: Exception) {
+                _recipeDetailState.value = RecipeDetailState.Error("Erreur de chargement : ${e.message}")
+            }
         }
     }
 }

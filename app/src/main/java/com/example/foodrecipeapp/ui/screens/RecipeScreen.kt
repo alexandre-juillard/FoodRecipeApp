@@ -91,7 +91,7 @@ fun RecipeScreen(viewModel: RecipeViewModel, onRecipeClick: (Recipe) -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(recipes) { recipe ->
-                        RecipeItem(recipe = recipe, onClick = { onRecipeClick })
+                        RecipeItem(recipe = recipe, onClick = { onRecipeClick(recipe) })
                     }
 
                     if (viewModel.nextPageUrl == null && recipes.isNotEmpty()) {

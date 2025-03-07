@@ -1,5 +1,6 @@
 package com.example.foodrecipeapp.data.remote
 
+import com.example.foodrecipeapp.data.model.Recipe
 import com.example.foodrecipeapp.data.model.RecipeResponse
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.serialization.json.Json
@@ -30,6 +31,12 @@ interface FoodApiService {
 
     @GET
     suspend fun getRecipesByUrl(@Url url: String): RecipeResponse
+
+    @GET("get/")
+    suspend fun getRecipeDetails(
+        @Query("id") id: Int,
+        @Header("Authorization") authHeader: String = "Token 9c8b06d329136da358c2d00e76946b0111ce2c48"
+    ): Recipe
 }
 
 object FoodApi {
