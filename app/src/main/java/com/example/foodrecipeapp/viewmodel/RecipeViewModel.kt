@@ -111,7 +111,7 @@ class RecipeViewModel: ViewModel() {
                 val response = FoodApi.retrofitService.getRecipeDetails(recipeId)
                 _recipeDetailState.value = RecipeDetailState.Success(response)
             } catch (e: Exception) {
-                _recipeDetailState.value = RecipeDetailState.Error("Erreur de chargement : ${e.message}")
+                _recipeDetailState.value = RecipeDetailState.Error("Erreur de chargement : Vérifier votre connexion.")
             }
         }
     }
