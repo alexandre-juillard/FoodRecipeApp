@@ -9,6 +9,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.foodrecipeapp.data.model.Recipe
 import com.example.foodrecipeapp.data.remote.FoodApi
+import com.example.foodrecipeapp.data.repository.RecipeRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.io.IOException
 
@@ -26,12 +29,15 @@ sealed interface RecipeDetailState {
     data class Error(val message: String) : RecipeDetailState
 }
 
-class RecipeViewModel: ViewModel() {
+class RecipeViewModel(private val recipeRepository: RecipeRepository): ViewModel() {
     var nextPageUrl: String? = null
     var isFetching = false
     private var allRecipes = mutableListOf<Recipe>()
     private val _recipeDetailState = mutableStateOf<RecipeDetailState>(RecipeDetailState.Loading)
     val recipeDetailState: State<RecipeDetailState> = _recipeDetailState
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage
+
 
     var recipeState by mutableStateOf<RecipeState>(RecipeState.Loading)
         private set
@@ -52,7 +58,7 @@ class RecipeViewModel: ViewModel() {
     }
 
     fun getRecipes() {
-//        Log.d("Debug", "getRecipes()")
+        Log.d("Debug", "getRecipes()")
         if (isFetching || nextPageUrl == null && allRecipes.isNotEmpty()) return
         isFetching = true
 
@@ -98,8 +104,20 @@ class RecipeViewModel: ViewModel() {
         }
     }
 
+    private val _cachedRecipes = MutableStateFlow<List<Recipe>>(emptyList())
+    val cachedRecipes: StateFlow<List<Recipe>> = _cachedRecipes
+
+    init {
+        viewModelScope.launch {
+            recipeRepository.getCachedRecipes().collect { recipes ->
+                _cachedRecipes.value = recipes
+            }
+        }
+    }
+
     fun loadMoreRecipes() {
         if (!isFetching && nextPageUrl != null) {
+            Log.d("Pagination", "Chargement de la page suivante...")
             getRecipes() // pour charger la page suivante
         }
     }
@@ -114,5 +132,28 @@ class RecipeViewModel: ViewModel() {
                 _recipeDetailState.value = RecipeDetailState.Error("Erreur de chargement : Vérifier votre connexion.")
             }
         }
+    }
+
+    suspend fun refreshRecipesIfNeeded() {
+        if (recipeRepository.getRecipesCount() == 0) { // Si le cache est vide
+            refreshRecipes("") // Rafraîchir les recettes avec une requête vide
+        }
+    }
+
+    private suspend fun refreshRecipes(query: String) {
+        try {
+            val response = recipeRepository.refreshRecipes(query)
+            // Gérer la réponse si nécessaire
+        } catch (e: IOException) {
+            throw e // Propager l'erreur pour la gérer dans le composable
+        }
+    }
+
+    fun showError(message: String) {
+        _errorMessage.value = message
+    }
+
+    fun clearError() {
+        _errorMessage.value = null
     }
 }

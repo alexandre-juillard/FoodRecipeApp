@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -26,6 +27,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +41,7 @@ import com.example.foodrecipeapp.ui.components.RecipeItem
 import com.example.foodrecipeapp.ui.components.SearchBar
 import com.example.foodrecipeapp.viewmodel.RecipeState
 import com.example.foodrecipeapp.viewmodel.RecipeViewModel
+import java.io.IOException
 
 @SuppressLint("ResourceAsColor")
 @Composable
@@ -46,6 +50,31 @@ fun RecipeScreen(viewModel: RecipeViewModel, onRecipeClick: (Recipe) -> Unit) {
     val state = viewModel.recipeState
     val searchQuery = viewModel.searchQuery
     val listState = rememberLazyListState()
+    val recipes by viewModel.cachedRecipes.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+
+    LaunchedEffect(Unit) {
+        try {
+            viewModel.refreshRecipesIfNeeded()
+        } catch (e: IOException) {
+            if (recipes.isEmpty()) {
+                viewModel.showError("Pas de connexion et pas de cache")
+            }
+        }
+    }
+
+    if (!errorMessage.isNullOrEmpty()) {
+        AlertDialog(
+            onDismissRequest = { viewModel.clearError() },
+            title = { Text("Erreur") },
+            text = { Text(errorMessage!!) },
+            confirmButton = {
+                Button(onClick = { viewModel.clearError() }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
 
     // détecter la fin de la liste des recettes
     LaunchedEffect(listState) {
