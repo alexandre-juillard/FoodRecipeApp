@@ -19,8 +19,10 @@ class RecipeRepository(
             val entities = response.results.map { it.toEntity() }
 
             recipeDao.insertRecipes(entities)
-            recipeDao.cleanOldRecipes(entities.map { it.pk })
-
+            // Seulement nettoyer anciennes recettes si requête vide (chargement initial)
+            if (query.isEmpty()) {
+                recipeDao.cleanOldRecipes(entities.map { it.pk })
+            }
         } catch (e: IOException) {
             if (recipeDao.getRecipesCount() == 0) throw e
         }
@@ -32,7 +34,19 @@ class RecipeRepository(
         }
     }
 
+    suspend fun getCachedRecipeById(id: Int): Recipe? {
+        return recipeDao.getRecipeById(id)?.toDomainModel()
+    }
+
+    suspend fun saveRecipe(recipe: Recipe) {
+        recipeDao.insertRecipe(recipe.toEntity())
+    }
+
     suspend fun getRecipesCount(): Int {
         return recipeDao.getRecipesCount()
+    }
+
+    suspend fun recipeExists(id: Int): Boolean {
+        return recipeDao.exists(id)
     }
 }

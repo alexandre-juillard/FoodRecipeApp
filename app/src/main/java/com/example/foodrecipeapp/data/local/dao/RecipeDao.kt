@@ -12,8 +12,14 @@ interface RecipeDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRecipes(recipes: List<RecipeEntity>)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRecipe(recipe: RecipeEntity)
+
     @Query("SELECT * FROM recipes WHERE title LIKE '%' || :query || '%' ORDER BY last_cached DESC")
     fun getRecipes(query: String): Flow<List<RecipeEntity>>
+
+    @Query("SELECT * FROM recipes WHERE pk = :id")
+    suspend fun getRecipeById(id: Int): RecipeEntity?
 
     @Query("DELETE FROM recipes WHERE pk NOT IN (:validIds)")
     suspend fun cleanOldRecipes(validIds: List<Int>)

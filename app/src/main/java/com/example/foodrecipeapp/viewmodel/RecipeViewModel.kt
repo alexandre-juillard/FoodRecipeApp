@@ -45,7 +45,26 @@ class RecipeViewModel(private val recipeRepository: RecipeRepository): ViewModel
     var searchQuery by mutableStateOf("") // ajout de la recherche
         private set
 
+    // Flux des recettes mises en cache
+    private val _cachedRecipes = MutableStateFlow<List<Recipe>>(emptyList())
+    val cachedRecipes: StateFlow<List<Recipe>> = _cachedRecipes
+
     init {
+        // Charger les données du cache
+        viewModelScope.launch {
+            recipeRepository.getCachedRecipes().collect { recipes ->
+                _cachedRecipes.value = recipes
+
+                // Si il y a des données en cache, mettre à jour l'état
+                if (recipes.isNotEmpty() && recipeState is RecipeState.Loading) {
+                    allRecipes.clear()
+                    allRecipes.addAll(recipes)
+                    recipeState = RecipeState.Success(allRecipes, allRecipes.size)
+                }
+            }
+        }
+
+        // Puis essayer de rafraîchir depuis l'API
         getRecipes()
     }
 
@@ -72,6 +91,13 @@ class RecipeViewModel(private val recipeRepository: RecipeRepository): ViewModel
                   FoodApi.retrofitService.getRecipesByUrl(nextPageUrl!!)
               }
 
+               // Enregistrer les données dans la base locale
+               if (nextPageUrl == null) {
+                   recipeRepository.refreshRecipes(searchQuery.ifEmpty { "" })
+               } else {
+                   // Ajoutez ici la logique pour gérer la pagination avec Room si nécessaire
+               }
+
                // filtre les recettes par titre côté client
                val filteredRecipes = if (searchQuery.isNotEmpty()) {
                    response.results.filter { recipe ->
@@ -97,21 +123,19 @@ class RecipeViewModel(private val recipeRepository: RecipeRepository): ViewModel
 
            } catch (e: IOException) {
                Log.e("Error", "${e.message}", e)
-               recipeState = RecipeState.Error("Connexion impossible. Vérifier votre connexion.")
+
+               // Vérifier si il y a des données en cache
+               if (allRecipes.isEmpty() && _cachedRecipes.value.isNotEmpty()) {
+                   // Utiliser les données en cache
+                   allRecipes.addAll(_cachedRecipes.value)
+                   recipeState = RecipeState.Success(allRecipes, allRecipes.size)
+                   showError("Utilisation des données en cache. Vérifiez votre connexion.")
+               } else {
+                   recipeState = RecipeState.Error("Connexion impossible. Vérifier votre connexion.")
+               }
            } finally {
                isFetching = false
            }
-        }
-    }
-
-    private val _cachedRecipes = MutableStateFlow<List<Recipe>>(emptyList())
-    val cachedRecipes: StateFlow<List<Recipe>> = _cachedRecipes
-
-    init {
-        viewModelScope.launch {
-            recipeRepository.getCachedRecipes().collect { recipes ->
-                _cachedRecipes.value = recipes
-            }
         }
     }
 
@@ -126,8 +150,23 @@ class RecipeViewModel(private val recipeRepository: RecipeRepository): ViewModel
         viewModelScope.launch {
             _recipeDetailState.value = RecipeDetailState.Loading
             try {
+                // Vérifier d'abord si la recette existe en local
+                val exists = recipeRepository.recipeExists(recipeId)
+
+                if (exists) {
+                    // Récupérer depuis la base locale
+                    recipeRepository.getCachedRecipeById(recipeId)?.let { recipe ->
+                        _recipeDetailState.value = RecipeDetailState.Success(recipe)
+                        return@launch
+                    }
+                }
+                // Sinon récupérer depuis API
                 val response = FoodApi.retrofitService.getRecipeDetails(recipeId)
                 _recipeDetailState.value = RecipeDetailState.Success(response)
+
+                // Sauvegarder la recette détaillée en local
+                recipeRepository.saveRecipe(response)
+
             } catch (e: Exception) {
                 _recipeDetailState.value = RecipeDetailState.Error("Erreur de chargement : Vérifier votre connexion.")
             }
